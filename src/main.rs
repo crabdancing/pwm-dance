@@ -19,7 +19,7 @@ async fn main(_spawner: Spawner) {
     let mut c: Config = Default::default();
     c.top = u16::MAX;
     c.compare_a = 0;
-    c.compare_b = u16::MAX;
+    c.compare_b = 0;
     let mut counter = 0u16;
 
     let mut pwm = Pwm::new_output_ab(p.PWM_CH0, p.PIN_16, p.PIN_17, c.clone());
