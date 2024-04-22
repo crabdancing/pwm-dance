@@ -3,31 +3,50 @@
 
 use defmt::*;
 use embassy_executor::Spawner;
-use embassy_rp::gpio;
-use embassy_time::{Duration, Timer};
-use gpio::{Level, Output};
+use embassy_rp::pwm::{Config, Pwm};
+use embassy_time::Timer;
 use {defmt_rtt as _, panic_probe as _};
 
 #[cortex_m_rt::pre_init]
 unsafe fn before_main() {
-    // Soft-reset doesn't clear spinlocks. Clear the one used by critical-section
-    // before we hit main to avoid deadlocks when using a debugger
     embassy_rp::pac::SIO.spinlock(31).write_value(1);
 }
 
 #[embassy_executor::main]
 async fn main(_spawner: Spawner) {
-    info!("Program start");
     let p = embassy_rp::init(Default::default());
-    let mut led = Output::new(p.PIN_25, Level::Low);
+
+    let mut c: Config = Default::default();
+    c.top = u16::MAX;
+    c.compare_a = 0;
+    c.compare_b = u16::MAX;
+    let mut counter = 0u16;
+
+    let mut pwm = Pwm::new_output_ab(p.PWM_CH0, p.PIN_16, p.PIN_17, c.clone());
+    enum Bounce {
+        Forward,
+        Backward,
+    }
+    let mut bounce = Bounce::Forward;
 
     loop {
-        info!("led on!");
-        led.set_high();
-        Timer::after(Duration::from_secs(1)).await;
-
-        info!("led off!");
-        led.set_low();
-        Timer::after(Duration::from_secs(1)).await;
+        Timer::after_micros(3).await;
+        if counter >= u16::MAX {
+            bounce = Bounce::Backward;
+        }
+        if counter <= 0 {
+            bounce = Bounce::Forward;
+        }
+        match bounce {
+            Bounce::Forward => {
+                counter += 1;
+            }
+            Bounce::Backward => {
+                counter -= 1;
+            }
+        }
+        c.compare_a = counter;
+        c.compare_b = u16::MAX - counter;
+        pwm.set_config(&c);
     }
 }
