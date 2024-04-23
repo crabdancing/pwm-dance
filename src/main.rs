@@ -35,7 +35,8 @@ async fn main(_spawner: Spawner) {
     let mut bounce = Bounce::Forward;
 
     loop {
-        Timer::after_micros(3).await;
+        // to make it visible, since we have 1 tick to every 655 for a duty cycle between 0-100, vs 0-65535.
+        Timer::after_micros(3 * 655).await;
         if counter >= 100 {
             bounce = Bounce::Backward;
         }
