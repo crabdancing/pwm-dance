@@ -3,7 +3,10 @@
 
 use defmt::*;
 use embassy_executor::Spawner;
-use embassy_rp::pwm::{Config, Pwm};
+use embassy_rp::{
+    clocks::clk_sys_freq,
+    pwm::{Config, Pwm},
+};
 use embassy_time::Timer;
 use {defmt_rtt as _, panic_probe as _};
 
@@ -18,20 +21,22 @@ async fn main(_spawner: Spawner) {
 
     let mut c: Config = Default::default();
     c.top = u16::MAX;
-    c.compare_a = 0;
-    c.compare_b = 0;
     let mut counter = 0u16;
 
     let mut pwm = Pwm::new_output_ab(p.PWM_SLICE0, p.PIN_16, p.PIN_17, c.clone());
+    info!("clk_sys_freq(): {}", clk_sys_freq());
+    let freq = (clk_sys_freq() as f64 * 0.25) as u32;
+    info!("PWM frequency: {}", freq);
     enum Bounce {
         Forward,
         Backward,
     }
+
     let mut bounce = Bounce::Forward;
 
     loop {
         Timer::after_micros(3).await;
-        if counter >= u16::MAX {
+        if counter >= 100 {
             bounce = Bounce::Backward;
         }
         if counter <= 0 {
@@ -40,13 +45,13 @@ async fn main(_spawner: Spawner) {
         match bounce {
             Bounce::Forward => {
                 counter += 1;
+                pwm.set_duty_a(counter).unwrap();
             }
             Bounce::Backward => {
                 counter -= 1;
+                pwm.set_duty_b(100 - counter).unwrap();
             }
         }
-        c.compare_a = counter;
-        c.compare_b = u16::MAX - counter;
         pwm.set_config(&c);
     }
 }
