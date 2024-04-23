@@ -53,6 +53,5 @@ async fn main(_spawner: Spawner) {
                 pwm.set_duty_b(100 - counter).unwrap();
             }
         }
-        pwm.set_config(&c);
     }
 }
